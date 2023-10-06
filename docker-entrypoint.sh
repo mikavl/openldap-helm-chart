@@ -3,7 +3,7 @@
 set -e
 set -u
 
-secrets_dir="/etc/ldap/secrets"
+secret_dir="/etc/ldap/secret"
 
 pod="$(hostname)"
 
@@ -15,9 +15,9 @@ fi
 
 mkdir -p /var/lib/ldap/accesslog
 
-credentials="$(cat "$secrets_dir/credentials")"
-replicator="$(cat "$secrets_dir/replicator")"
-suffix="$(cat "$secrets_dir/suffix")"
+credentials="$(cat "$secret_dir/credentials")"
+replicator="$(cat "$secret_dir/replicator")"
+suffix="$(cat "$secret_dir/suffix")"
 
 sed --regexp-extended \
   --expression="s/@CREDENTIALS@/$credentials/" \
