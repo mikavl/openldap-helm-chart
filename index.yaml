@@ -3,6 +3,16 @@ entries:
   slapd:
   - apiVersion: v2
     appVersion: main
+    created: "2023-10-06T13:31:14.615622718Z"
+    description: A slapd Helm chart for Kubernetes
+    digest: 89cab6a6dc7cee387b843aedc4f2eeafecb0e06b90cf548fb8a1275908a4a80a
+    name: slapd
+    type: application
+    urls:
+    - https://github.com/mikavl/openldap-helm-chart/releases/download/slapd-0.1.1/slapd-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: main
     created: "2023-10-06T13:29:19.586416986Z"
     description: A slapd Helm chart for Kubernetes
     digest: 8bf1c48d124f405451cde3f6ba891488c92fd8c974655d592dca0ec1a8e95b47
@@ -11,4 +21,4 @@ entries:
     urls:
     - https://github.com/mikavl/openldap-helm-chart/releases/download/slapd-0.1.0/slapd-0.1.0.tgz
     version: 0.1.0
-generated: "2023-10-06T13:29:19.586430087Z"
+generated: "2023-10-06T13:31:14.615630018Z"
