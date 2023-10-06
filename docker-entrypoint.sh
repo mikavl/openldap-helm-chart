@@ -13,14 +13,14 @@ else
     role="consumer"
 fi
 
+mkdir -p /var/lib/ldap/accesslog
+
 credentials="$(cat "$secrets_dir/credentials")"
-provider="$(cat "$secrets_dir/provider")"
 replicator="$(cat "$secrets_dir/replicator")"
 suffix="$(cat "$secrets_dir/suffix")"
 
 sed --regexp-extended \
   --expression="s/@CREDENTIALS@/$credentials/" \
-  --expression="s/@PROVIDER@/$provider/" \
   --expression="s/@REPLICATOR@/$replicator/" \
   --expression="s/@SUFFIX@/$suffix/" \
   "/etc/ldap/init/slapd.init.ldif" "/etc/ldap/init/slapd.$role.init.ldif" \
