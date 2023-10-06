@@ -113,7 +113,7 @@ data:
     olcDbIndex: automountKey,automountMapName,cn,gidNumber,member,memberOf,memberUid,objectClass,uid,uidNumber eq
     olcDbIndex: entryCSN,entryUUID eq
     olcSyncRepl: rid=000
-      provider="ldaps://{{ include "slapd.fullname" . }}-0.{{ include "slapd.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:636"
+      provider="ldaps://{{ include "slapd.fullname" . }}-0.{{ include "slapd.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:10636"
       type=refreshOnly
       searchbase="@SUFFIX@"
       bindmethod=simple
