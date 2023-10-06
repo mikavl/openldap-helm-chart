@@ -26,4 +26,4 @@ VOLUME ["/etc/ldap/init", "/etc/ldap/secret", "/etc/ldap/slapd.d", "/run/slapd",
 USER slapd
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["/usr/sbin/slapd", "-d", "stats", "-F", "/etc/ldap/slapd.d", "-h", "ldapi:/// ldaps:///"]
+CMD ["/usr/sbin/slapd", "-d", "stats", "-F", "/etc/ldap/slapd.d", "-h", "ldapi:/// ldaps://0.0.0.0:10636/"]
