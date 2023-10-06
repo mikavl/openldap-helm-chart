@@ -59,10 +59,12 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
-            - name: config
+            - name: data
               mountPath: /etc/ldap/slapd.d
+              subPath: slapd.d
             - name: data
               mountPath: /var/lib/ldap
+              subPath: ldap
             - name: init
               mountPath: /etc/ldap/init
             - name: run
@@ -70,8 +72,6 @@ spec:
             - name: secret
               mountPath: /etc/ldap/secret
       volumes:
-        - name: config
-          emptyDir: {}
         {{- if not .Values.persistence.enabled }}
         - name: data
           emptyDir: {}
