@@ -30,7 +30,7 @@ sed --regexp-extended \
   --expression="s/@SUFFIX@/$suffix/" \
   --expression="s/@UID@/$(id -u)/" \
   "/etc/ldap/init/slapd.init.ldif" "/etc/ldap/init/slapd.$role.init.ldif" \
-  | slapadd -F /etc/ldap/slapd.d -n 0
+  | slapadd -d -1 -F /etc/ldap/slapd.d -n 0
 
 ulimit -n 1024
 exec "$@"
