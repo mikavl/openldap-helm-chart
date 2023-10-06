@@ -1,0 +1,265 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "slapd.fullname" . }}-config
+  labels:
+    {{- include "slapd.labels" . | nindent 4 }}
+data:
+  slapd.init.ldif: |
+    dn: cn=config
+    objectClass: olcGlobal
+    cn: config
+    olcArgsFile: /run/slapd/slapd.args
+    olcDisallows: bind_anon
+    olcPasswordCryptSaltFormat: $6$%.16s
+    olcPidFile: /run/slapd/slapd.pid
+    olcThreads: 4
+    olcToolThreads: 1
+    olcWriteTimeout: 300
+    olcTLSCACertificateFile: /etc/ldap/secret/ca.pem
+    olcTLSCertificateFile: /etc/ldap/secret/cert.pem
+    olcTLSCertificateKeyFile: /etc/ldap/secret/cert.key
+
+
+    dn: cn=module,cn=config
+    objectClass: olcModuleList
+    cn: module
+    olcModulePath: /usr/lib/ldap
+    olcModuleLoad: back_mdb
+    olcModuleLoad: accesslog
+    olcModuleLoad: back_monitor
+    olcModuleLoad: dynlist
+    olcModuleLoad: memberof
+    olcModuleLoad: refint
+    olcModuleLoad: syncprov
+    {{- range .Values.config.extraModules }}
+    olcModuleLoad: {{ . }}
+    {{- end }}
+
+    dn: olcDatabase={-1}frontend,cn=config
+    objectClass: olcDatabaseConfig
+    objectClass: olcFrontendConfig
+    olcDatabase: {-1}frontend
+    olcPasswordHash: {CRYPT}
+    olcRequires: authc
+    olcAccess: to dn.exact=""
+      by * read
+    olcAccess: to dn.base="cn=Subschema"
+      by * read
+
+    dn: olcDatabase={0}config,cn=config
+    objectClass: olcDatabaseConfig
+    olcDatabase: {0}config
+    olcRootDN: cn=admin,cn=config
+    olcAccess: to *
+      by dn.exact="gidNumber=@GID@+uidNumber=@UID@,cn=peercred,cn=external,cn=auth" manage
+      {{- range .Values.config.configDatabaseExtraAccess }}
+      {{ . }}
+      {{- end }}
+      by * break
+
+    dn: cn=schema,cn=config
+    objectClass: olcSchemaConfig
+    cn: schema
+
+    include: file:///etc/ldap/schema/core.ldif
+    include: file:///etc/ldap/schema/cosine.ldif
+    include: file:///etc/ldap/schema/rfc2307bis.ldif
+    include: file:///etc/ldap/schema/inetorgperson.ldif
+    {{- range .Values.config.extraSchemas }}
+    include: {{ . }}
+    {{- end }}
+
+    dn: olcDatabase={1}monitor,cn=config
+    objectClass: olcDatabaseConfig
+    olcDatabase: {1}monitor
+    olcMonitoring: FALSE
+    olcAccess: to *
+      by dn.exact="gidNumber=@GID@+uidNumber=@UID@,cn=peercred,cn=external,cn=auth" read
+      {{- range .Values.config.configDatabaseExtraAccess }}
+      {{ . }}
+      {{- end }}
+      by * break
+
+    # This comment ensures a newline between the LDIF files
+
+  slapd.consumer.init.ldif: |
+    dn: olcDatabase={2}mdb,cn=config
+    objectClass: olcDatabaseConfig
+    objectClass: olcMdbConfig
+    olcDatabase: {2}mdb
+    olcDbMaxSize: {{ .Values.config.consumer.accesslogDatabaseMaxSize }}
+    olcDbDirectory: /var/lib/ldap/accesslog
+    olcSuffix: cn=accesslog
+    olcRootDN: cn=admin,cn=accesslog
+    olcDbIndex: entryCSN,objectClass,reqEnd,reqResult,reqStart,reqDN eq
+    olcAccess: to *
+      by dn.exact="gidNumber=@GID@+uidNumber=@UID@,cn=peercred,cn=external,cn=auth" read
+      {{- range .Values.config.consumer.accesslogDatabaseExtraAccess }}
+      {{ . }}
+      {{- end }}
+      by * break
+
+    dn: olcDatabase={2}mdb,cn=config
+    objectClass: olcDatabaseConfig
+    objectClass: olcMdbConfig
+    olcDatabase: {2}mdb
+    olcDbMaxSize: {{ .Values.config.consumer.accesslogDatabaseMaxSize }}
+    olcDbCheckpoint: 1024 10
+    olcSuffix: @SUFFIX@
+    olcDbDirectory: /var/lib/ldap
+    olcMonitoring: TRUE
+    olcRootDN: cn=admin,@SUFFIX@
+    olcDbIndex: automountKey,automountMapName,cn,gidNumber,member,memberOf,memberUid,objectClass,uid,uidNumber eq
+    olcDbIndex: entryCSN,entryUUID eq
+    olcSyncRepl: rid=000
+      provider="ldaps://{{ include "slapd.fullname" . }}-0.{{ include "slapd.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:636"
+      type=refreshOnly
+      searchbase="@SUFFIX@"
+      bindmethod=simple
+      binddn="@REPLICATOR@"
+      credentials="@REPLICATOR CREDENTIALS@"
+      syncdata=accesslog
+      logbase="cn=accesslog"
+      logfilter="(&(objectClass=auditWriteObject)(reqResult=0))"
+      schemachecking=on
+      retry="60 +"
+      interval="00:00:10:00"
+    olcAccess: to attrs=userPassword
+      by dn.exact="gidNumber=10000+uidNumber=10000,cn=peercred,cn=external,cn=auth" manage
+      by dn.exact="@MANAGER@" write
+      by self write
+      by anonymous auth
+      by * none
+    olcAccess: to attrs=shadowLastChange
+      by dn.exact="gidNumber=10000+uidNumber=10000,cn=peercred,cn=external,cn=auth" manage
+      by dn.exact="@MANAGER@" write
+      by self write
+      by * none
+    olcAccess: to *
+      by dn.exact="gidNumber=10000+uidNumber=10000,cn=peercred,cn=external,cn=auth" manage
+      by dn.exact="@MANAGER@" write
+      {{- range .Values.config.provider.mdbDatabaseExtraAccess }}
+      {{ . }}
+      {{- end }}
+      by * break
+
+    dn: olcOverlay=memberof,olcDatabase={3}mdb,cn=config
+    objectClass: olcConfig
+    objectClass: olcMemberOf
+    objectClass: olcOverlayConfig
+    olcOverlay: memberof
+    olcMemberOfRefInt: TRUE
+    olcMemberOfGroupOC: groupOfMembers
+    olcMemberOfMemberAD: member
+    olcMemberOfMemberOfAD: memberOf
+
+    dn: olcOverlay=refint,olcDatabase={3}mdb,cn=config
+    objectClass: olcConfig
+    objectClass: olcRefintConfig
+    objectClass: olcOverlayConfig
+    olcOverlay: refint
+    olcRefintAttribute: member
+    olcRefintAttribute: memberOf
+
+    dn: olcOverlay=accesslog,olcDatabase={3}mdb,cn=config
+    objectClass: olcOverlayConfig
+    objectClass: olcAccessLogConfig
+    olcOverlay: accesslog
+    olcAccessLogDB: cn=accesslog
+    olcAccessLogOps: writes
+    olcAccessLogSuccess: TRUE
+    olcAccessLogPurge: 07+00:00 01+00:00
+
+  slapd.provider.init.ldif: |
+    dn: olcDatabase={2}mdb,cn=config
+    objectClass: olcDatabaseConfig
+    objectClass: olcMdbConfig
+    olcDatabase: {2}mdb
+    olcDbMaxSize: {{ .Values.config.provider.accesslogDatabaseMaxSize }}
+    olcDbDirectory: /var/lib/ldap/accesslog
+    olcSuffix: cn=accesslog
+    olcRootDN: cn=admin,cn=accesslog
+    olcDbIndex: entryCSN,objectClass,reqEnd,reqResult,reqStart,reqDN eq
+    olcAccess: to *
+      by dn.exact="gidNumber=@GID@+uidNumber=@UID@,cn=peercred,cn=external,cn=auth" read
+      by dn.exact="@REPLICATOR@" read
+      {{- range .Values.config.provider.accesslogDatabaseExtraAccess }}
+      {{ . }}
+      {{- end }}
+      by * break
+
+    dn: olcOverlay=syncprov,olcDatabase={2}mdb,cn=config
+    objectClass: olcOverlayConfig
+    objectClass: olcSyncProvConfig
+    olcOverlay: syncprov
+    olcSpNoPresent: TRUE
+    olcSpReloadHint: TRUE
+
+    dn: olcDatabase={3}mdb,cn=config
+    objectClass: olcDatabaseConfig
+    objectClass: olcMdbConfig
+    olcDatabase: {3}mdb
+    olcDbMaxSize: {{ .Values.config.provider.mdbDatabaseMaxSize }}
+    olcDbCheckpoint: 1024 10
+    olcSuffix: @SUFFIX@
+    olcDbDirectory: /var/lib/ldap
+    olcMonitoring: TRUE
+    olcRootDN: cn=admin,@SUFFIX@
+    olcDbIndex: automountKey,automountMapName,cn,gidNumber,member,memberOf,memberUid,objectClass,uid,uidNumber eq
+    olcDbIndex: entryCSN,entryUUID eq
+    olcAccess: to attrs=userPassword
+      by dn.exact="gidNumber=@GID@+uidNumber=@UID@,cn=peercred,cn=external,cn=auth" manage
+      by dn.exact="@MANAGER@" write
+      by dn.exact="@REPLICATOR@" read
+      by self write
+      by anonymous auth
+      by * none
+    olcAccess: to attrs=shadowLastChange
+      by dn.exact="gidNumber=@GID@+uidNumber=@UID@,cn=peercred,cn=external,cn=auth" manage
+      by dn.exact="@MANAGER@" write
+      by dn.exact="@REPLICATOR@" read
+      by self write
+      by * none
+    olcAccess: to *
+      by dn.exact="gidNumber=@GID@+uidNumber=@UID@,cn=peercred,cn=external,cn=auth" manage
+      by dn.exact="@MANAGER@" write
+      by dn.exact="@REPLICATOR@" read
+      {{- range .Values.config.provider.mdbDatabaseExtraAccess }}
+      {{ . }}
+      {{- end }}
+      by * break
+
+    dn: olcOverlay=memberof,olcDatabase={3}mdb,cn=config
+    objectClass: olcConfig
+    objectClass: olcMemberOf
+    objectClass: olcOverlayConfig
+    olcOverlay: memberof
+    olcMemberOfRefInt: TRUE
+    olcMemberOfGroupOC: groupOfMembers
+    olcMemberOfMemberAD: member
+    olcMemberOfMemberOfAD: memberOf
+
+    dn: olcOverlay=refint,olcDatabase={3}mdb,cn=config
+    objectClass: olcConfig
+    objectClass: olcRefintConfig
+    objectClass: olcOverlayConfig
+    olcOverlay: refint
+    olcRefintAttribute: member
+    olcRefintAttribute: memberOf
+
+    dn: olcOverlay=accesslog,olcDatabase={3}mdb,cn=config
+    objectClass: olcOverlayConfig
+    objectClass: olcAccessLogConfig
+    olcOverlay: accesslog
+    olcAccessLogDB: cn=accesslog
+    olcAccessLogOps: writes
+    olcAccessLogSuccess: TRUE
+    olcAccessLogPurge: 07+00:00 01+00:00
+
+    dn: olcOverlay=syncprov,olcDatabase={3}mdb,cn=config
+    objectClass: olcOverlayConfig
+    objectClass: olcSyncProvConfig
+    olcOverlay: syncprov
+    olcSpCheckpoint: 100 10
+    olcSpSessionLog: 100
