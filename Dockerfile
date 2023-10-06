@@ -19,6 +19,7 @@ RUN apt-get update \
       slapd
 
 COPY --chmod=0755 --chown=root:root docker-entrypoint.sh /usr/local/bin/
+COPY --chmod=0644 --chown=root:root schema /etc/ldap/schema/
 
 VOLUME ["/etc/ldap/init", "/etc/ldap/secret", "/etc/ldap/slapd.d", "/run/slapd", "/var/lib/ldap"]
 

@@ -21,8 +21,10 @@ suffix="$(cat "$secret_dir/suffix")"
 
 sed --regexp-extended \
   --expression="s/@CREDENTIALS@/$credentials/" \
+  --expression="s/@GID@/$(id -g)/" \
   --expression="s/@REPLICATOR@/$replicator/" \
   --expression="s/@SUFFIX@/$suffix/" \
+  --expression="s/@UID@/$(id -u)/" \
   "/etc/ldap/init/slapd.init.ldif" "/etc/ldap/init/slapd.$role.init.ldif" \
   | slapadd -F /etc/ldap/slapd.d -n 0
 
